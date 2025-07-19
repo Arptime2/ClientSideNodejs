@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Frontend Node.js Runner</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>" />
+    <link rel="stylesheet" href="./src/style.css">
 
     <script type="importmap">
     {
@@ -16,34 +17,8 @@
         }
     }
     </script>
-
-    <style>
-        :root {
-            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            --bg-color: #f0f2f5;
-            --editor-bg: #ffffff;
-            --terminal-bg: #1e1e1e;
-            --text-color: #1c1e21;
-            --border-color: #dcdfe6;
-            --button-bg: #409eff;
-            --button-hover-bg: #66b1ff;
-            --header-height: 60px;
-        }
-        body, html { margin: 0; padding: 0; height: 100%; font-family: var(--font-family); background-color: var(--bg-color); color: var(--text-color); display: flex; flex-direction: column; }
-        header { height: var(--header-height); background-color: var(--editor-bg); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; flex-shrink: 0; }
-        header h1 { font-size: 1.5em; margin: 0; }
-        #run-button { padding: 10px 20px; font-size: 1em; color: white; background-color: var(--button-bg); border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s; }
-        #run-button:hover { background-color: var(--button-hover-bg); }
-        main { display: flex; flex-direction: column; height: calc(100% - var(--header-height)); padding: 10px; box-sizing: border-box; }
-        #editor-container, #terminal-container { flex: 1; background-color: var(--editor-bg); border: 1px solid var(--border-color); border-radius: 5px; overflow: hidden; display: flex; flex-direction: column; }
-        #editor-container { margin-bottom: 10px; }
-        #code-input { flex: 1; border: none; padding: 15px; font-family: monospace; font-size: 1em; resize: none; outline: none; }
-        #terminal { flex: 1; padding: 10px; background-color: var(--terminal-bg); overflow: hidden; }
-        .xterm .xterm-viewport { background-color: var(--terminal-bg); }
-    </style>
 </head>
 <body>
-
     <header>
         <h1>Frontend Node.js Runner</h1>
         <button id="run-button">Run Code</button>
@@ -58,137 +33,7 @@
         </div>
     </main>
 
-    <script type="module">
-        // Imports MUST be at the top level of the module.
-        import { WebContainer } from '@webcontainer/api';
-        import Terminal from 'xterm'; // Corrected: Use default import for Terminal
-
-        // All executable code is wrapped in a main() function to ensure
-        // we can use a top-level try/catch block for fatal errors.
-        async function main() {
-            console.log("Script module starting...");
-
-            // --- COI Service Worker ---
-            if (typeof SharedArrayBuffer === 'undefined') {
-                console.log("SharedArrayBuffer is not available. Registering COI service worker.");
-                const swCode = `
-                    self.addEventListener('install', () => self.skipWaiting());
-                    self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
-                    self.addEventListener('fetch', (event) => {
-                        if (event.request.mode === 'navigate') {
-                            event.respondWith(
-                                fetch(event.request).then((response) => {
-                                    const newHeaders = new Headers(response.headers);
-                                    newHeaders.set('Cross-Origin-Embedder-Policy', 'require-corp');
-                                    newHeaders.set('Cross-Origin-Opener-Policy', 'same-origin');
-                                    return new Response(response.body, { headers: newHeaders });
-                                })
-                            );
-                        }
-                    });
-                `;
-                const swBlob = new Blob([swCode], { type: 'application/javascript' });
-                const swUrl = URL.createObjectURL(swBlob);
-
-                navigator.serviceWorker.register(swUrl).then(() => {
-                    console.log("Service worker registered. Reloading page to apply headers.");
-                    window.location.reload();
-                });
-                // Stop further execution until the page reloads with the new headers
-                return;
-            }
-
-            // --- Main Application Logic ---
-            console.log("Modules imported. Initializing application.");
-
-            const xtermCss = document.createElement('link');
-            xtermCss.rel = 'stylesheet';
-            xtermCss.href = 'https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css';
-            document.head.appendChild(xtermCss);
-
-            const runButton = document.getElementById('run-button');
-            const codeInput = document.getElementById('code-input');
-            const terminalDiv = document.getElementById('terminal');
-
-            let webcontainerInstance;
-            const terminal = new Terminal({ convertEol: true, cursorBlink: true });
-            terminal.open(terminalDiv);
-
-            // --- Manual Terminal Resizing --- 
-            function fitTerminal() {
-                const termContainer = terminal.element.parentElement;
-                const core = terminal._core;
-                if (!termContainer || !core) return; // Guard against early execution
-                const dims = core.renderer.dimensions;
-
-                if (dims.actualCellWidth === 0 || dims.actualCellHeight === 0) {
-                    return;
-                }
-
-                const containerWidth = termContainer.clientWidth;
-                const containerHeight = termContainer.clientHeight;
-                
-                const cols = Math.floor(containerWidth / dims.actualCellWidth);
-                const rows = Math.floor(containerHeight / dims.actualCellHeight);
-
-                terminal.resize(cols, rows);
-                console.log(`Resized terminal to ${cols}x${rows}`);
-            }
-
-            setTimeout(fitTerminal, 100);
-            window.addEventListener('resize', fitTerminal);
-
-            async function initializeWebContainer() {
-                console.log("Initializing WebContainer...");
-                terminal.write('\x1b[33mBooting WebContainer...\x1b[0m\r\n');
-                try {
-                    webcontainerInstance = await WebContainer.boot();
-                    terminal.write('\x1b[32mWebContainer booted successfully!\x1b[0m\r\n');
-                    console.log("WebContainer booted successfully.");
-                } catch (error) {
-                    terminal.write('\x1b[31mError booting WebContainer: ' + error + '\x1b[0m\r\n');
-                    console.error("Error booting WebContainer:", error);
-                }
-            }
-
-            async function runCode() {
-                console.log("'Run Code' button clicked.");
-                if (!webcontainerInstance) {
-                    const msg = "WebContainer is not ready.";
-                    terminal.write('\x1b[31m' + msg + '\x1b[0m\r\n');
-                    console.error(msg);
-                    return;
-                }
-
-                const code = codeInput.value;
-                terminal.write('\x1b[36m> node -e "..."\x1b[0m\r\n');
-
-                try {
-                    const process = await webcontainerInstance.spawn('node', ['-e', code]);
-                    process.output.pipeTo(new WritableStream({
-                        write(data) {
-                            terminal.write(data);
-                        }
-                    }));
-                } catch (error) {
-                    terminal.write('\x1b[31mError running code: ' + error + '\x1b[0m\r\n');
-                    console.error("Error running code:", error);
-                }
-            }
-
-            runButton.addEventListener('click', runCode);
-            console.log("Event listener attached to 'Run Code' button.");
-
-            await initializeWebContainer();
-        }
-
-        // This top-level try/catch will handle any fatal script errors.
-        try {
-            main();
-        } catch (error) {
-            console.error("A fatal error occurred in the main script:", error);
-            document.body.innerHTML = `<pre style="color: red; padding: 20px;">A fatal error occurred: ${error.message}.\n\nCheck the developer console for details.</pre>`;
-        }
-    </script>
+    <script type="module" src="./src/main.js"></script>
 </body>
 </html>
+
