@@ -3,53 +3,55 @@ import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import 'xterm/css/xterm.css';
 
-const startReplButton = document.getElementById('start-repl');
+const codeInput = document.getElementById('code-input');
+const runButton = document.getElementById('run-button');
 const terminalContainer = document.querySelector('.terminal-container');
 
 let terminal;
 let webcontainerInstance;
 
-startReplButton.addEventListener('click', async () => {
-    if (!terminal) {
-        terminal = new Terminal({
-            cursorBlink: true,
-        });
-        const fitAddon = new FitAddon();
-        terminal.loadAddon(fitAddon);
-        terminal.open(terminalContainer);
-        fitAddon.fit();
-    }
+async function initializeWebContainer() {
+    terminal = new Terminal({
+        cursorBlink: true,
+    });
+    const fitAddon = new FitAddon();
+    terminal.loadAddon(fitAddon);
+    terminal.open(terminalContainer);
+    fitAddon.fit();
 
     terminal.write('Starting WebContainer...\n');
     try {
         webcontainerInstance = await WebContainer.boot();
         terminal.write('WebContainer started successfully!\n');
-        startNodeRepl();
     } catch (error) {
         terminal.write(`Error starting WebContainer: ${error}\n`);
     }
-});
+}
 
-async function startNodeRepl() {
+async function runCode() {
     if (!webcontainerInstance) {
         terminal.write('WebContainer is not initialized.\n');
         return;
     }
 
-    terminal.write('Starting Node.js REPL...\n');
+    const code = codeInput.value;
+    if (!code) {
+        terminal.write('Please enter some code to run.\n');
+        return;
+    }
+
+    terminal.write('Running code...\n');
     try {
-        const process = await webcontainerInstance.spawn('node');
+        const process = await webcontainerInstance.spawn('node', ['-e', code]);
         process.output.pipeTo(new WritableStream({
             write(data) {
                 terminal.write(data);
             }
         }));
-
-        const input = process.input.getWriter();
-        terminal.onData((data) => {
-            input.write(data);
-        });
     } catch (error) {
-        terminal.write(`Error starting Node.js REPL: ${error}\n`);
+        terminal.write(`Error running code: ${error}\n`);
     }
 }
+
+window.addEventListener('load', initializeWebContainer);
+runButton.addEventListener('click', runCode);

@@ -9,8 +9,9 @@
   </head>
   <body>
     <h1>Client-Side Node.js REPL</h1>
-    <p>This is a Node.js REPL running entirely in your browser, powered by WebContainers.</p>
-    <button id="start-repl">Start REPL</button>
+    <p>Enter your Node.js code below and click "Run".</p>
+    <textarea id="code-input" rows="10"></textarea>
+    <button id="run-button">Run</button>
     <div class="terminal-container"></div>
     <script>
       if (typeof SharedArrayBuffer === 'undefined') {
