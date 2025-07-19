@@ -193,7 +193,7 @@ console.log('Hello from Node.js in the browser!');"></textarea>
             }
 
             const code = codeInput.value;
-            terminal.write(`\x1b[36m> node -e "..."\x1b[0m\r\n`);
+            terminal.write('\x1b[36m> node -e "..."\x1b[0m\r\n');
 
             try {
                 const process = await webcontainerInstance.spawn('node', ['-e', code]);
