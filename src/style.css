@@ -1,4 +1,3 @@
-
 :root {
     --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     --bg-color: #f0f2f5;
@@ -19,5 +18,4 @@ main { display: flex; flex-direction: column; height: calc(100% - var(--header-h
 #editor-container, #terminal-container { flex: 1; background-color: var(--editor-bg); border: 1px solid var(--border-color); border-radius: 5px; overflow: hidden; display: flex; flex-direction: column; }
 #editor-container { margin-bottom: 10px; }
 #code-input { flex: 1; border: none; padding: 15px; font-family: monospace; font-size: 1em; resize: none; outline: none; }
-#terminal { flex: 1; padding: 10px; background-color: var(--terminal-bg); overflow: hidden; }
-.xterm .xterm-viewport { background-color: var(--terminal-bg); }
+#terminal-output { flex: 1; padding: 10px; background-color: var(--terminal-bg); color: #f0f0f0; font-family: monospace; white-space: pre-wrap; word-wrap: break-word; margin: 0; overflow-y: auto; }

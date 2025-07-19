@@ -1,76 +1,42 @@
-// Imports MUST be at the top level of the module.
 import { WebContainer } from '@webcontainer/api';
-import * as xterm from 'xterm';
 
-// All executable code is wrapped in a main() function to ensure
-// we can use a top-level try/catch block for fatal errors.
 async function main() {
     console.log("Script module starting...");
 
     // --- COI Service Worker ---
     if (typeof SharedArrayBuffer === 'undefined') {
         console.log("SharedArrayBuffer is not available. Registering COI service worker.");
-        // Construct the correct path to the service worker file.
-        // It should be relative to the root of the deployed site.
         const swPath = new URL('coi-serviceworker.js', window.location.href).pathname;
-        
         navigator.serviceWorker.register(swPath).then(() => {
             console.log("Service worker registered. Reloading page to apply headers.");
             window.location.reload();
         });
-        // Stop further execution until the page reloads with the new headers
         return;
     }
 
     // --- Main Application Logic ---
-    console.log("Modules imported. Initializing application.");
-
-    const xtermCss = document.createElement('link');
-    xtermCss.rel = 'stylesheet';
-    xtermCss.href = 'https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css';
-    document.head.appendChild(xtermCss);
+    console.log("Initializing application.");
 
     const runButton = document.getElementById('run-button');
     const codeInput = document.getElementById('code-input');
-    const terminalDiv = document.getElementById('terminal');
+    const terminalOutput = document.getElementById('terminal-output');
 
     let webcontainerInstance;
-    const terminal = new xterm.Terminal({ convertEol: true, cursorBlink: true });
-    terminal.open(terminalDiv);
 
-    // --- Manual Terminal Resizing --- 
-    function fitTerminal() {
-        const termContainer = terminal.element.parentElement;
-        const core = terminal._core;
-        if (!termContainer || !core) return; // Guard against early execution
-        const dims = core.renderer.dimensions;
-
-        if (dims.actualCellWidth === 0 || dims.actualCellHeight === 0) {
-            return;
-        }
-
-        const containerWidth = termContainer.clientWidth;
-        const containerHeight = termContainer.clientHeight;
-        
-        const cols = Math.floor(containerWidth / dims.actualCellWidth);
-        const rows = Math.floor(containerHeight / dims.actualCellHeight);
-
-        terminal.resize(cols, rows);
-        console.log(`Resized terminal to ${cols}x${rows}`);
+    function writeToTerminal(data) {
+        terminalOutput.textContent += data;
+        terminalOutput.scrollTop = terminalOutput.scrollHeight; // Auto-scroll
     }
-
-    setTimeout(fitTerminal, 100);
-    window.addEventListener('resize', fitTerminal);
 
     async function initializeWebContainer() {
         console.log("Initializing WebContainer...");
-        terminal.write('\x1b[33mBooting WebContainer...\x1b[0m\r\n');
+        writeToTerminal('Booting WebContainer...\n');
         try {
             webcontainerInstance = await WebContainer.boot();
-            terminal.write('\x1b[32mWebContainer booted successfully!\x1b[0m\r\n');
+            writeToTerminal('WebContainer booted successfully!\n');
             console.log("WebContainer booted successfully.");
         } catch (error) {
-            terminal.write('\x1b[31mError booting WebContainer: ' + error + '\x1b[0m\r\n');
+            writeToTerminal(`Error booting WebContainer: ${error}\n`);
             console.error("Error booting WebContainer:", error);
         }
     }
@@ -79,23 +45,23 @@ async function main() {
         console.log("'Run Code' button clicked.");
         if (!webcontainerInstance) {
             const msg = "WebContainer is not ready.";
-            terminal.write('\x1b[31m' + msg + '\x1b[0m\r\n');
+            writeToTerminal(msg + '\n');
             console.error(msg);
             return;
         }
 
         const code = codeInput.value;
-        terminal.write('\x1b[36m> node -e "..."\x1b[0m\r\n');
+        writeToTerminal(`> node -e "..."\n`);
 
         try {
             const process = await webcontainerInstance.spawn('node', ['-e', code]);
             process.output.pipeTo(new WritableStream({
                 write(data) {
-                    terminal.write(data);
+                    writeToTerminal(data);
                 }
             }));
         } catch (error) {
-            terminal.write('\x1b[31mError running code: ' + error + '\x1b[0m\r\n');
+            writeToTerminal(`Error running code: ${error}\n`);
             console.error("Error running code:", error);
         }
     }
