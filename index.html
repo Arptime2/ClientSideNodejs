@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,15 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Frontend Node.js Runner</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>" />
-    <link rel="stylesheet" href="./src/style.css">
 
     <script type="importmap">
     {
         "imports": {
-            "@webcontainer/api": "https://cdn.jsdelivr.net/npm/@webcontainer/api@1.1.8/dist/index.js"
+            "@webcontainer/api": "https://cdn.jsdelivr.net/npm/@webcontainer/api@1.1.8/dist/index.js",
+            "coi-serviceworker": "https://cdn.jsdelivr.net/npm/coi-serviceworker@0.1.7/coi-serviceworker.min.js"
         }
     }
     </script>
+
+    <style>
+        :root {
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --bg-color: #f0f2f5;
+            --editor-bg: #ffffff;
+            --terminal-bg: #1e1e1e;
+            --text-color: #1c1e21;
+            --border-color: #dcdfe6;
+            --button-bg: #409eff;
+            --button-hover-bg: #66b1ff;
+            --header-height: 60px;
+        }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: var(--font-family); background-color: var(--bg-color); color: var(--text-color); display: flex; flex-direction: column; }
+        header { height: var(--header-height); background-color: var(--editor-bg); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; flex-shrink: 0; }
+        header h1 { font-size: 1.5em; margin: 0; }
+        #run-button { padding: 10px 20px; font-size: 1em; color: white; background-color: var(--button-bg); border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s; }
+        #run-button:hover { background-color: var(--button-hover-bg); }
+        main { display: flex; flex-direction: column; height: calc(100% - var(--header-height)); padding: 10px; box-sizing: border-box; }
+        #editor-container, #terminal-container { flex: 1; background-color: var(--editor-bg); border: 1px solid var(--border-color); border-radius: 5px; overflow: hidden; display: flex; flex-direction: column; }
+        #editor-container { margin-bottom: 10px; }
+        #code-input { flex: 1; border: none; padding: 15px; font-family: monospace; font-size: 1em; resize: none; outline: none; }
+        #terminal-output { flex: 1; padding: 10px; background-color: var(--terminal-bg); color: #f0f0f0; font-family: monospace; white-space: pre-wrap; word-wrap: break-word; margin: 0; overflow-y: auto; }
+    </style>
 </head>
 <body>
     <header>
@@ -24,13 +47,82 @@
 
     <main>
         <div id="editor-container">
-            <textarea id="code-input" placeholder="// Your Node.js code here...\nconsole.log('Hello from Node.js in the browser!');"></textarea>
+            <textarea id="code-input" placeholder="// Your Node.js code here...\nconst http = require('http');\nconst server = http.createServer((req, res) => {\n  res.end('Hello from the server!');\n});\nserver.listen(3000, () => {\n  console.log('Server is running!');\n});"></textarea>
         </div>
         <div id="terminal-container">
             <pre id="terminal-output"></pre>
         </div>
     </main>
 
-    <script type="module" src="./src/main.js"></script>
+    <script type="module">
+        // Import the official coi-serviceworker library
+        import coi from 'coi-serviceworker';
+        import { WebContainer } from '@webcontainer/api';
+
+        // The library returns a promise that resolves when the service worker is ready.
+        // We wrap our entire application in this to ensure headers are set first.
+        coi.register().then(async (registration) => {
+            console.log("COI Service Worker registered.");
+
+            const runButton = document.getElementById('run-button');
+            const codeInput = document.getElementById('code-input');
+            const terminalOutput = document.getElementById('terminal-output');
+
+            let webcontainerInstance;
+
+            function writeToTerminal(data) {
+                terminalOutput.textContent += data;
+                terminalOutput.scrollTop = terminalOutput.scrollHeight;
+            }
+
+            async function initializeWebContainer() {
+                writeToTerminal('Booting WebContainer...\n');
+                try {
+                    webcontainerInstance = await WebContainer.boot();
+                    writeToTerminal('WebContainer booted successfully!\n');
+
+                    webcontainerInstance.on('server-ready', (port, url) => {
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.target = '_blank';
+                        link.textContent = `Server is ready at ${url}`;
+                        terminalOutput.appendChild(document.createElement('br'));
+                        terminalOutput.appendChild(link);
+                        terminalOutput.appendChild(document.createElement('br'));
+                        terminalOutput.scrollTop = terminalOutput.scrollHeight;
+                    });
+
+                } catch (error) {
+                    writeToTerminal(`Error booting WebContainer: ${error}\n`);
+                }
+            }
+
+            async function runCode() {
+                if (!webcontainerInstance) {
+                    writeToTerminal("WebContainer is not ready.\n");
+                    return;
+                }
+
+                const code = codeInput.value;
+                writeToTerminal(`> node script.js\n`);
+
+                try {
+                    // We write the code to a file to handle more complex scripts
+                    await webcontainerInstance.fs.writeFile('script.js', code);
+                    const process = await webcontainerInstance.spawn('node', ['script.js']);
+                    process.output.pipeTo(new WritableStream({
+                        write(data) {
+                            writeToTerminal(data);
+                        }
+                    }));
+                } catch (error) {
+                    writeToTerminal(`Error running code: ${error}\n`);
+                }
+            }
+
+            runButton.addEventListener('click', runCode);
+            await initializeWebContainer();
+        });
+    </script>
 </body>
 </html>
