@@ -4,8 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Client-Side Node.js REPL</title>
-    <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="./style.css">
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./style.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "@webcontainer/api": "https://cdn.jsdelivr.net/npm/@webcontainer/api@^1.0.0/dist/index.js",
+          "xterm": "https://cdn.jsdelivr.net/npm/xterm@^5.0.0/lib/xterm.js",
+          "xterm-addon-fit": "https://cdn.jsdelivr.net/npm/xterm-addon-fit@^0.8.0/lib/xterm-addon-fit.js"
+        }
+      }
+    </script>
   </head>
   <body>
     <h1>Client-Side Node.js REPL</h1>

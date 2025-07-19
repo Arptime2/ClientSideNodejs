@@ -1,7 +1,10 @@
 import { WebContainer } from '@webcontainer/api';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
-import 'xterm/css/xterm.css';
+
+const style = document.createElement('style');
+style.innerHTML = `@import url('https://cdn.jsdelivr.net/npm/xterm@^5.0.0/css/xterm.css');`;
+document.head.appendChild(style);
 
 const codeInput = document.getElementById('code-input');
 const runButton = document.getElementById('run-button');
