@@ -2,104 +2,92 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>WebContainer Node.js Playground</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebContainer Node.js REPL</title>
+  <!-- XTerm.js CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/xterm/css/xterm.css" />
   <!-- COOP/COEP shim -->
   <script src="coi-serviceworker.js"></script>
   <style>
-    body { margin: 0; display: flex; height: 100vh; font-family: sans-serif; }
-    #sidebar {
-      width: 40%;
-      padding: 1rem;
-      box-sizing: border-box;
-      border-right: 1px solid #ccc;
+    body {
+      margin: 0;
+      height: 100vh;
       display: flex;
       flex-direction: column;
+      font-family: sans-serif;
     }
-    #editor {
+    #controls {
+      padding: 0.5rem;
+      background: #eee;
+      border-bottom: 1px solid #ccc;
+    }
+    #terminal {
       flex: 1;
-      width: 100%;
-      resize: none;
-      font-family: monospace;
-      font-size: 14px;
     }
-    #run {
-      margin-top: 0.5rem;
+    button {
       padding: 0.5rem 1rem;
+      font-size: 1rem;
     }
-    #output-container {
-      flex: 1;
-      width: 60%;
-      padding: 1rem;
-      box-sizing: border-box;
-      overflow: auto;
-      background: #f9f9f9;
-    }
-    #output {
-      white-space: pre-wrap;
-      font-family: monospace;
-    }
-    .error { color: red; }
-    .stdout { color: black; }
   </style>
 </head>
 <body>
-  <div id="sidebar">
-    <h2>Code Editor</h2>
-    <textarea id="editor" placeholder="Write your Node.js code here...">console.log('Hello, WebContainer!');</textarea>
-    <button id="run">Run ▶️</button>
+  <div id="controls">
+    <button id="run">Start/Restart REPL ▶️</button>
   </div>
-  <div id="output-container">
-    <h2>Output</h2>
-    <div id="output"></div>
-  </div>
+  <div id="terminal"></div>
 
   <script type="module">
-  import { WebContainer } from 'https://cdn.jsdelivr.net/npm/@webcontainer/api/dist/index.js';
+    import { WebContainer } from 'https://cdn.jsdelivr.net/npm/@webcontainer/api/dist/index.js';
+    import { Terminal } from 'https://unpkg.com/xterm/lib/xterm.js';
+    import { FitAddon } from 'https://unpkg.com/xterm-addon-fit/lib/xterm-addon-fit.js';
 
-  let container;
+    let container;
+    let replProcess;
+    const term = new Terminal({ cursorBlink: true });
+    const fitAddon = new FitAddon();
 
-  const boot = async () => {
-    container = await WebContainer.boot();
-  };
-
-  await boot();
-
-  document.getElementById('run').addEventListener('click', async () => {
-    const outputEl = document.getElementById('output');
-    outputEl.textContent = '';
-
-    const code = document.getElementById('editor').value;
-    if (code.includes('.help')) {
-      const err = document.createElement('div');
-      err.className = 'error';
-      err.textContent = '❌ Error: .help is a REPL command. Please remove it and use plain JavaScript.';
-      outputEl.appendChild(err);
-      return;
+    async function bootContainer() {
+      if (!container) {
+        container = await WebContainer.boot();
+      }
     }
 
-    // Write the JS code to a file
-    await container.fs.writeFile('/index.js', code);
+    async function startRepl() {
+      term.reset(); // Clear terminal
+      if (replProcess) {
+        try { replProcess.kill(); } catch {}
+      }
 
-    // Spawn node process to run the file
-    const process = await container.spawn('node', {
-      args: ['index.js'],
-      stdout: true,
-      stderr: true
-    });
+      replProcess = await container.spawn('node', {
+        stdout: true,
+        stderr: true,
+        stdin: true,
+      });
 
-    // Output the result
-    const reader = process.output.getReader();
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      const text = value;
-      const line = document.createElement('div');
-      line.textContent = text;
-      line.className = /Error|Exception/.test(text) ? 'error' : 'stdout';
-      outputEl.appendChild(line);
+      // Pipe output to terminal
+      replProcess.output.pipeTo(new WritableStream({
+        write(data) { term.write(data); }
+      }));
+
+      // Pipe terminal input to REPL stdin
+      term.onData(data => replProcess.input.write(data));
     }
-  });
+
+    (async () => {
+      // Setup terminal
+      term.loadAddon(fitAddon);
+      term.open(document.getElementById('terminal'));
+      fitAddon.fit();
+
+      window.addEventListener('resize', () => fitAddon.fit());
+
+      await bootContainer();
+
+      document.getElementById('run').addEventListener('click', startRepl);
+
+      // Start REPL by default
+      startRepl();
+    })();
   </script>
 </body>
 </html>
