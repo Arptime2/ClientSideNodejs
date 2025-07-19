@@ -17,7 +17,7 @@ async function initializeWebContainer() {
     terminal = new Terminal({
         cursorBlink: true,
     });
-    const fitAddon = new FitAddon();
+    const fitAddon = new FitAddon.FitAddon();
     terminal.loadAddon(fitAddon);
     terminal.open(terminalContainer);
     fitAddon.fit();
