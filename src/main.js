@@ -1,3 +1,6 @@
+
+
+// Imports MUST be at the top level of the module.
 import { WebContainer } from '@webcontainer/api';
 
 async function main() {
@@ -35,6 +38,13 @@ async function main() {
             webcontainerInstance = await WebContainer.boot();
             writeToTerminal('WebContainer booted successfully!\n');
             console.log("WebContainer booted successfully.");
+
+            // --- Handle Server Ready Event ---
+            webcontainerInstance.on('server-ready', (port, url) => {
+                console.log(`Server is ready at ${url}`);
+                writeToTerminal(`\nServer is ready! Click to open: ${url}\n`);
+            });
+
         } catch (error) {
             writeToTerminal(`Error booting WebContainer: ${error}\n`);
             console.error("Error booting WebContainer:", error);
