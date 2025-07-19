@@ -1,8 +1,6 @@
-
-
 // Imports MUST be at the top level of the module.
 import { WebContainer } from '@webcontainer/api';
-import * as xterm from 'xterm'; // Corrected: Import all of xterm as a namespace.
+import * as xterm from 'xterm';
 
 // All executable code is wrapped in a main() function to ensure
 // we can use a top-level try/catch block for fatal errors.
@@ -12,26 +10,11 @@ async function main() {
     // --- COI Service Worker ---
     if (typeof SharedArrayBuffer === 'undefined') {
         console.log("SharedArrayBuffer is not available. Registering COI service worker.");
-        const swCode = `
-            self.addEventListener('install', () => self.skipWaiting());
-            self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
-            self.addEventListener('fetch', (event) => {
-                if (event.request.mode === 'navigate') {
-                    event.respondWith(
-                        fetch(event.request).then((response) => {
-                            const newHeaders = new Headers(response.headers);
-                            newHeaders.set('Cross-Origin-Embedder-Policy', 'require-corp');
-                            newHeaders.set('Cross-Origin-Opener-Policy', 'same-origin');
-                            return new Response(response.body, { headers: newHeaders });
-                        })
-                    );
-                }
-            });
-        `;
-        const swBlob = new Blob([swCode], { type: 'application/javascript' });
-        const swUrl = URL.createObjectURL(swBlob);
-
-        navigator.serviceWorker.register(swUrl).then(() => {
+        // Construct the correct path to the service worker file.
+        // It should be relative to the root of the deployed site.
+        const swPath = new URL('coi-serviceworker.js', window.location.href).pathname;
+        
+        navigator.serviceWorker.register(swPath).then(() => {
             console.log("Service worker registered. Reloading page to apply headers.");
             window.location.reload();
         });
@@ -52,7 +35,7 @@ async function main() {
     const terminalDiv = document.getElementById('terminal');
 
     let webcontainerInstance;
-    const terminal = new xterm.Terminal({ convertEol: true, cursorBlink: true }); // Corrected: Use xterm.Terminal
+    const terminal = new xterm.Terminal({ convertEol: true, cursorBlink: true });
     terminal.open(terminalDiv);
 
     // --- Manual Terminal Resizing --- 
