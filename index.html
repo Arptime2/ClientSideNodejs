@@ -25,7 +25,7 @@
 
     <main>
         <div id="editor-container">
-            <textarea id="code-input" placeholder="// Your Node.js code here...\nconsole.log('Hello from Node.js in the browser!');"></textarea>
+            <textarea id="code-input" placeholder="// Your Node.js code here...\nconst http = require('http');\nconst server = http.createServer((req, res) => {\n  res.end('Hello from the server!');\n});\nserver.listen(3000, () => {\n  console.log('Server is running!');\n});"></textarea>
         </div>
         <div id="terminal-container">
             <pre id="terminal-output"></pre>

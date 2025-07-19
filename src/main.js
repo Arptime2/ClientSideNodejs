@@ -1,14 +1,14 @@
-// Imports MUST be at the top level of the module.
+
+
 import { WebContainer } from '@webcontainer/api';
 
 async function main() {
     console.log("Script module starting...");
 
-    // --- COI Service Worker ---
+    // --- Smart COI Service Worker Registration ---
     if (typeof SharedArrayBuffer === 'undefined') {
         console.log("SharedArrayBuffer is not available. Registering COI service worker.");
         const swPath = new URL('coi-serviceworker.js', window.location.href).pathname;
-        
         navigator.serviceWorker.register(swPath).then(() => {
             console.log("Service worker registered. Reloading page to apply headers.");
             window.location.reload();
@@ -27,20 +27,16 @@ async function main() {
 
     function writeToTerminal(data) {
         terminalOutput.textContent += data;
-        terminalOutput.scrollTop = terminalOutput.scrollHeight; // Auto-scroll
+        terminalOutput.scrollTop = terminalOutput.scrollHeight;
     }
 
     async function initializeWebContainer() {
-        console.log("Initializing WebContainer...");
         writeToTerminal('Booting WebContainer...\n');
         try {
             webcontainerInstance = await WebContainer.boot();
             writeToTerminal('WebContainer booted successfully!\n');
-            console.log("WebContainer booted successfully.");
 
-            // --- Handle Server Ready Event ---
             webcontainerInstance.on('server-ready', (port, url) => {
-                console.log(`Server is ready at ${url}`);
                 const link = document.createElement('a');
                 link.href = url;
                 link.target = '_blank';
@@ -53,16 +49,12 @@ async function main() {
 
         } catch (error) {
             writeToTerminal(`Error booting WebContainer: ${error}\n`);
-            console.error("Error booting WebContainer:", error);
         }
     }
 
     async function runCode() {
-        console.log("'Run Code' button clicked.");
         if (!webcontainerInstance) {
-            const msg = "WebContainer is not ready.";
-            writeToTerminal(msg + '\n');
-            console.error(msg);
+            writeToTerminal("WebContainer is not ready.\n");
             return;
         }
 
@@ -70,7 +62,6 @@ async function main() {
         writeToTerminal(`> node script.js\n`);
 
         try {
-            // We write the code to a file to handle more complex scripts
             await webcontainerInstance.fs.writeFile('script.js', code);
             const process = await webcontainerInstance.spawn('node', ['script.js']);
             process.output.pipeTo(new WritableStream({
@@ -80,13 +71,10 @@ async function main() {
             }));
         } catch (error) {
             writeToTerminal(`Error running code: ${error}\n`);
-            console.error("Error running code:", error);
         }
     }
 
     runButton.addEventListener('click', runCode);
-    console.log("Event listener attached to 'Run Code' button.");
-
     await initializeWebContainer();
 }
 
@@ -94,6 +82,7 @@ async function main() {
 try {
     main();
 } catch (error) {
-    console.error("A fatal error occurred in the main script:", error);
-    document.body.innerHTML = `<pre style="color: red; padding: 20px;">A fatal error occurred: ${error.message}.\n\nCheck the developer console for details.</pre>`;
+    console.error("A fatal error occurred:", error);
+    document.body.innerHTML = `<pre style="color: red; padding: 20px;">A fatal error occurred: ${error.message}.</pre>`;
 }
+
