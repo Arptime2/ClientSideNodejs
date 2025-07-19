@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,7 +6,6 @@
     <title>Frontend Node.js Runner</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>" />
 
-    <!-- Import Map: Loads modules directly from a CDN -->
     <script type="importmap">
     {
         "imports": {
@@ -31,79 +28,17 @@
             --button-hover-bg: #66b1ff;
             --header-height: 60px;
         }
-        body, html {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            font-family: var(--font-family);
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            display: flex;
-            flex-direction: column;
-        }
-        header {
-            height: var(--header-height);
-            background-color: var(--editor-bg);
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 20px;
-            flex-shrink: 0;
-        }
-        header h1 {
-            font-size: 1.5em;
-            margin: 0;
-        }
-        #run-button {
-            padding: 10px 20px;
-            font-size: 1em;
-            color: white;
-            background-color: var(--button-bg);
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        #run-button:hover {
-            background-color: var(--button-hover-bg);
-        }
-        main {
-            display: flex;
-            flex-direction: column;
-            height: calc(100% - var(--header-height));
-            padding: 10px;
-            box-sizing: border-box;
-        }
-        #editor-container, #terminal-container {
-            flex: 1;
-            background-color: var(--editor-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 5px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-        #editor-container {
-            margin-bottom: 10px;
-        }
-        #code-input {
-            flex: 1;
-            border: none;
-            padding: 15px;
-            font-family: monospace;
-            font-size: 1em;
-            resize: none;
-            outline: none;
-        }
-        #terminal {
-            flex: 1;
-            padding: 10px;
-            background-color: var(--terminal-bg);
-        }
-        .xterm .xterm-viewport { 
-            background-color: var(--terminal-bg);
-        }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: var(--font-family); background-color: var(--bg-color); color: var(--text-color); display: flex; flex-direction: column; }
+        header { height: var(--header-height); background-color: var(--editor-bg); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; flex-shrink: 0; }
+        header h1 { font-size: 1.5em; margin: 0; }
+        #run-button { padding: 10px 20px; font-size: 1em; color: white; background-color: var(--button-bg); border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s; }
+        #run-button:hover { background-color: var(--button-hover-bg); }
+        main { display: flex; flex-direction: column; height: calc(100% - var(--header-height)); padding: 10px; box-sizing: border-box; }
+        #editor-container, #terminal-container { flex: 1; background-color: var(--editor-bg); border: 1px solid var(--border-color); border-radius: 5px; overflow: hidden; display: flex; flex-direction: column; }
+        #editor-container { margin-bottom: 10px; }
+        #code-input { flex: 1; border: none; padding: 15px; font-family: monospace; font-size: 1em; resize: none; outline: none; }
+        #terminal { flex: 1; padding: 10px; background-color: var(--terminal-bg); }
+        .xterm .xterm-viewport { background-color: var(--terminal-bg); }
     </style>
 </head>
 <body>
@@ -119,7 +54,115 @@
         </div>
         <div id="terminal-container">
             <div id="terminal"></div>
+        </div>
+    </main>
+
+    <script type="module">
+    try {
+        console.log("Script module starting...");
+
+        // --- COI Service Worker ---
+        if (typeof SharedArrayBuffer === 'undefined') {
+            console.log("SharedArrayBuffer is not available. Registering COI service worker.");
+            const swCode = `
+                self.addEventListener('install', () => self.skipWaiting());
+                self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+                self.addEventListener('fetch', (event) => {
+                    if (event.request.mode === 'navigate') {
+                        event.respondWith(
+                            fetch(event.request).then((response) => {
+                                const newHeaders = new Headers(response.headers);
+                                newHeaders.set('Cross-Origin-Embedder-Policy', 'require-corp');
+                                newHeaders.set('Cross-Origin-Opener-Policy', 'same-origin');
+                                return new Response(response.body, { headers: newHeaders });
+                            })
+                        );
+                    }
+                });
+            `;
+            const swBlob = new Blob([swCode], { type: 'application/javascript' });
+            const swUrl = URL.createObjectURL(swBlob);
+
+            navigator.serviceWorker.register(swUrl).then(() => {
+                console.log("Service worker registered. Reloading page to apply headers.");
+                window.location.reload();
+            });
         }
+
+        // --- Main Application Logic ---
+        console.log("Importing modules...");
+        import { WebContainer } from '@webcontainer/api';
+        import { Terminal } from 'xterm';
+        import { FitAddon } from 'xterm-addon-fit';
+
+        console.log("Modules imported.");
+
+        const xtermCss = document.createElement('link');
+        xtermCss.rel = 'stylesheet';
+        xtermCss.href = 'https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css';
+        document.head.appendChild(xtermCss);
+
+        const runButton = document.getElementById('run-button');
+        const codeInput = document.getElementById('code-input');
+        const terminalDiv = document.getElementById('terminal');
+
+        let webcontainerInstance;
+        const terminal = new Terminal({ convertEol: true, cursorBlink: true });
+        const fitAddon = new FitAddon();
+        terminal.loadAddon(fitAddon);
+        terminal.open(terminalDiv);
+        fitAddon.fit();
+
+        window.addEventListener('resize', () => fitAddon.fit());
+
+        async function initializeWebContainer() {
+            console.log("Initializing WebContainer...");
+            terminal.write('\x1b[33mBooting WebContainer...\x1b[0m\r\n');
+            try {
+                webcontainerInstance = await WebContainer.boot();
+                terminal.write('\x1b[32mWebContainer booted successfully!\x1b[0m\r\n');
+                console.log("WebContainer booted successfully.");
+            } catch (error) {
+                terminal.write('\x1b[31mError booting WebContainer: ' + error + '\x1b[0m\r\n');
+                console.error("Error booting WebContainer:", error);
+            }
+        }
+
+        async function runCode() {
+            console.log("'Run Code' button clicked.");
+            if (!webcontainerInstance) {
+                const msg = "WebContainer is not ready.";
+                terminal.write('\x1b[31m' + msg + '\x1b[0m\r\n');
+                console.error(msg);
+                return;
+            }
+
+            const code = codeInput.value;
+            terminal.write('\x1b[36m> node -e "..."\x1b[0m\r\n');
+
+            try {
+                const process = await webcontainerInstance.spawn('node', ['-e', code]);
+                process.output.pipeTo(new WritableStream({
+                    write(data) {
+                        terminal.write(data);
+                    }
+                }));
+            } catch (error) {
+                terminal.write('\x1b[31mError running code: ' + error + '\x1b[0m\r\n');
+                console.error("Error running code:", error);
+            }
+        }
+
+        runButton.addEventListener('click', runCode);
+        console.log("Event listener attached to 'Run Code' button.");
+
+        initializeWebContainer();
+
+    } catch (error) {
+        console.error("A fatal error occurred in the main script:", error);
+        // Also display the error in the UI itself as a last resort
+        document.body.innerHTML = `<pre style="color: red; padding: 20px;">A fatal error occurred: ${error.message}.\n\nCheck the developer console for details.</pre>`;
+    }
     </script>
 </body>
 </html>
