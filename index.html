@@ -1,36 +1,217 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Client-Side Node.js REPL</title>
-    <link rel="icon" href="data:," />
-    <link rel="stylesheet" href="./style.css" />
+    <title>Frontend Node.js Runner</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>" />
+
+    <!-- Import Map: Loads modules directly from a CDN -->
     <script type="importmap">
-      {
+    {
         "imports": {
-          "@webcontainer/api": "https://cdn.jsdelivr.net/npm/@webcontainer/api@^1.0.0/dist/index.js",
-          "xterm": "https://cdn.jsdelivr.net/npm/xterm@^5.0.0/lib/xterm.js",
-          "xterm-addon-fit": "https://cdn.jsdelivr.net/npm/xterm-addon-fit@^0.8.0/lib/xterm-addon-fit.js"
+            "@webcontainer/api": "https://cdn.jsdelivr.net/npm/@webcontainer/api@1.1.8/dist/index.js",
+            "xterm": "https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js",
+            "xterm-addon-fit": "https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"
         }
-      }
+    }
     </script>
-  </head>
-  <body>
-    <h1>Client-Side Node.js REPL</h1>
-    <p>Enter your Node.js code below and click "Run".</p>
-    <textarea id="code-input" rows="10"></textarea>
-    <button id="run-button">Run</button>
-    <div class="terminal-container"></div>
-    <script>
-      if (typeof SharedArrayBuffer === 'undefined') {
-        const swUrl = `./coi-sw.js`;
-        navigator.serviceWorker.register(swUrl).then(() => {
-          console.log('Service worker registered, reloading the page.');
-          window.location.reload();
-        });
-      }
+
+    <style>
+        :root {
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --bg-color: #f0f2f5;
+            --editor-bg: #ffffff;
+            --terminal-bg: #1e1e1e;
+            --text-color: #1c1e21;
+            --border-color: #dcdfe6;
+            --button-bg: #409eff;
+            --button-hover-bg: #66b1ff;
+            --header-height: 60px;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+        }
+        header {
+            height: var(--header-height);
+            background-color: var(--editor-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            flex-shrink: 0;
+        }
+        header h1 {
+            font-size: 1.5em;
+            margin: 0;
+        }
+        #run-button {
+            padding: 10px 20px;
+            font-size: 1em;
+            color: white;
+            background-color: var(--button-bg);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #run-button:hover {
+            background-color: var(--button-hover-bg);
+        }
+        main {
+            display: flex;
+            flex-direction: column;
+            height: calc(100% - var(--header-height));
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        #editor-container, #terminal-container {
+            flex: 1;
+            background-color: var(--editor-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        #editor-container {
+            margin-bottom: 10px;
+        }
+        #code-input {
+            flex: 1;
+            border: none;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 1em;
+            resize: none;
+            outline: none;
+        }
+        #terminal {
+            flex: 1;
+            padding: 10px;
+            background-color: var(--terminal-bg);
+        }
+        .xterm .xterm-viewport { 
+            background-color: var(--terminal-bg);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Frontend Node.js Runner</h1>
+        <button id="run-button">Run Code</button>
+    </header>
+
+    <main>
+        <div id="editor-container">
+            <textarea id="code-input" placeholder="// Your Node.js code here...
+console.log('Hello from Node.js in the browser!');"></textarea>
+        </div>
+        <div id="terminal-container">
+            <div id="terminal"></div>
+        </div>
+    </main>
+
+    <script type="module">
+        // --- COI Service Worker --- 
+        // This is the magic that makes WebContainers work on GitHub Pages.
+        // It creates a service worker on the fly to set the required headers.
+        if (typeof SharedArrayBuffer === 'undefined') {
+            const swCode = `
+                self.addEventListener('install', () => self.skipWaiting());
+                self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+                self.addEventListener('fetch', (event) => {
+                    if (event.request.mode === 'navigate') {
+                        event.respondWith(
+                            fetch(event.request).then((response) => {
+                                const newHeaders = new Headers(response.headers);
+                                newHeaders.set('Cross-Origin-Embedder-Policy', 'require-corp');
+                                newHeaders.set('Cross-Origin-Opener-Policy', 'same-origin');
+                                return new Response(response.body, { headers: newHeaders });
+                            })
+                        );
+                    }
+                });
+            `;
+            const swBlob = new Blob([swCode], { type: 'application/javascript' });
+            const swUrl = URL.createObjectURL(swBlob);
+
+            navigator.serviceWorker.register(swUrl).then(() => {
+                console.log('Service worker registered, reloading the page to apply COOP/COEP headers.');
+                window.location.reload();
+            });
+        }
+
+        // --- Main Application Logic ---
+        import { WebContainer } from '@webcontainer/api';
+        import { Terminal } from 'xterm';
+        import { FitAddon } from 'xterm-addon-fit';
+
+        // Dynamically load the xterm CSS file
+        const xtermCss = document.createElement('link');
+        xtermCss.rel = 'stylesheet';
+        xtermCss.href = 'https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css';
+        document.head.appendChild(xtermCss);
+
+        const runButton = document.getElementById('run-button');
+        const codeInput = document.getElementById('code-input');
+        const terminalDiv = document.getElementById('terminal');
+
+        let webcontainerInstance;
+        const terminal = new Terminal({ convertEol: true, cursorBlink: true });
+        const fitAddon = new FitAddon();
+        terminal.loadAddon(fitAddon);
+        terminal.open(terminalDiv);
+        fitAddon.fit();
+
+        window.addEventListener('resize', () => fitAddon.fit());
+
+        async function initializeWebContainer() {
+            terminal.write('\x1b[33mBooting WebContainer...\x1b[0m\r\n');
+            try {
+                webcontainerInstance = await WebContainer.boot();
+                terminal.write('\x1b[32mWebContainer booted successfully!\x1b[0m\r\n');
+                terminal.write('Ready to run Node.js code.\r\n');
+            } catch (error) {
+                terminal.write(`\x1b[31mError booting WebContainer: ${error}\x1b[0m\r\n');
+            }
+        }
+
+        async function runCode() {
+            if (!webcontainerInstance) {
+                terminal.write('\x1b[31mWebContainer is not ready.\x1b[0m\r\n');
+                return;
+            }
+
+            const code = codeInput.value;
+            terminal.write(`\x1b[36m> node -e "..."\x1b[0m\r\n`);
+
+            try {
+                const process = await webcontainerInstance.spawn('node', ['-e', code]);
+                process.output.pipeTo(new WritableStream({
+                    write(data) {
+                        terminal.write(data);
+                    }
+                }));
+            } catch (error) {
+                terminal.write(`\x1b[31mError running code: ${error}\x1b[0m\r\n');
+            }
+        }
+
+        runButton.addEventListener('click', runCode);
+        
+        // Initialize on page load
+        initializeWebContainer();
+
     </script>
-    <script type="module" src="./main.js"></script>
-  </body>
+</body>
 </html>

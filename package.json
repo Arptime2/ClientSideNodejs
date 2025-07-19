@@ -1,6 +1,0 @@
-{
-  "name": "client-side-nodejs-repl",
-  "version": "1.0.0",
-  "description": "A Node.js REPL running entirely in the browser using WebContainers.",
-  "main": "main.js"
-}
