@@ -1,3 +1,5 @@
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -113,105 +115,11 @@
 
     <main>
         <div id="editor-container">
-            <textarea id="code-input" placeholder="// Your Node.js code here...
-console.log('Hello from Node.js in the browser!');"></textarea>
+            <textarea id="code-input" placeholder="// Your Node.js code here...\nconsole.log('Hello from Node.js in the browser!');"></textarea>
         </div>
         <div id="terminal-container">
             <div id="terminal"></div>
-        </div>
-    </main>
-
-    <script type="module">
-        // --- COI Service Worker --- 
-        // This is the magic that makes WebContainers work on GitHub Pages.
-        // It creates a service worker on the fly to set the required headers.
-        if (typeof SharedArrayBuffer === 'undefined') {
-            const swCode = `
-                self.addEventListener('install', () => self.skipWaiting());
-                self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
-                self.addEventListener('fetch', (event) => {
-                    if (event.request.mode === 'navigate') {
-                        event.respondWith(
-                            fetch(event.request).then((response) => {
-                                const newHeaders = new Headers(response.headers);
-                                newHeaders.set('Cross-Origin-Embedder-Policy', 'require-corp');
-                                newHeaders.set('Cross-Origin-Opener-Policy', 'same-origin');
-                                return new Response(response.body, { headers: newHeaders });
-                            })
-                        );
-                    }
-                });
-            `;
-            const swBlob = new Blob([swCode], { type: 'application/javascript' });
-            const swUrl = URL.createObjectURL(swBlob);
-
-            navigator.serviceWorker.register(swUrl).then(() => {
-                console.log('Service worker registered, reloading the page to apply COOP/COEP headers.');
-                window.location.reload();
-            });
         }
-
-        // --- Main Application Logic ---
-        import { WebContainer } from '@webcontainer/api';
-        import { Terminal } from 'xterm';
-        import { FitAddon } from 'xterm-addon-fit';
-
-        // Dynamically load the xterm CSS file
-        const xtermCss = document.createElement('link');
-        xtermCss.rel = 'stylesheet';
-        xtermCss.href = 'https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css';
-        document.head.appendChild(xtermCss);
-
-        const runButton = document.getElementById('run-button');
-        const codeInput = document.getElementById('code-input');
-        const terminalDiv = document.getElementById('terminal');
-
-        let webcontainerInstance;
-        const terminal = new Terminal({ convertEol: true, cursorBlink: true });
-        const fitAddon = new FitAddon();
-        terminal.loadAddon(fitAddon);
-        terminal.open(terminalDiv);
-        fitAddon.fit();
-
-        window.addEventListener('resize', () => fitAddon.fit());
-
-        async function initializeWebContainer() {
-            terminal.write('\x1b[33mBooting WebContainer...\x1b[0m\r\n');
-            try {
-                webcontainerInstance = await WebContainer.boot();
-                terminal.write('\x1b[32mWebContainer booted successfully!\x1b[0m\r\n');
-                terminal.write('Ready to run Node.js code.\r\n');
-            } catch (error) {
-                terminal.write(`\x1b[31mError booting WebContainer: ${error}\x1b[0m\r\n');
-            }
-        }
-
-        async function runCode() {
-            if (!webcontainerInstance) {
-                terminal.write('\x1b[31mWebContainer is not ready.\x1b[0m\r\n');
-                return;
-            }
-
-            const code = codeInput.value;
-            terminal.write('\x1b[36m> node -e "..."\x1b[0m\r\n');
-
-            try {
-                const process = await webcontainerInstance.spawn('node', ['-e', code]);
-                process.output.pipeTo(new WritableStream({
-                    write(data) {
-                        terminal.write(data);
-                    }
-                }));
-            } catch (error) {
-                terminal.write(`\x1b[31mError running code: ${error}\x1b[0m\r\n');
-            }
-        }
-
-        runButton.addEventListener('click', runCode);
-        
-        // Initialize on page load
-        initializeWebContainer();
-
     </script>
 </body>
 </html>
