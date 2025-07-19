@@ -1,3 +1,5 @@
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -59,7 +61,7 @@
     <script type="module">
         // Imports MUST be at the top level of the module.
         import { WebContainer } from '@webcontainer/api';
-        import { Terminal } from 'xterm';
+        import Terminal from 'xterm'; // Corrected: Use default import for Terminal
 
         // All executable code is wrapped in a main() function to ensure
         // we can use a top-level try/catch block for fatal errors.
@@ -114,13 +116,12 @@
 
             // --- Manual Terminal Resizing --- 
             function fitTerminal() {
-                // This is a bit of a hack, we need to get the dimensions of the
-                // containing element and the dimensions of a single character.
                 const termContainer = terminal.element.parentElement;
                 const core = terminal._core;
+                if (!termContainer || !core) return; // Guard against early execution
                 const dims = core.renderer.dimensions;
 
-                if (!termContainer || dims.actualCellWidth === 0 || dims.actualCellHeight === 0) {
+                if (dims.actualCellWidth === 0 || dims.actualCellHeight === 0) {
                     return;
                 }
 
@@ -134,8 +135,6 @@
                 console.log(`Resized terminal to ${cols}x${rows}`);
             }
 
-            // Fit the terminal initially and on window resize.
-            // A small timeout gives the browser time to render everything first.
             setTimeout(fitTerminal, 100);
             window.addEventListener('resize', fitTerminal);
 
