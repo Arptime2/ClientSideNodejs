@@ -3,22 +3,23 @@ import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import 'xterm/css/xterm.css';
 
-const terminalEl = document.querySelector('.terminal');
+const startReplButton = document.getElementById('start-repl');
+const terminalContainer = document.querySelector('.terminal-container');
 
-const terminal = new Terminal({
-    cursorBlink: true,
-});
-
-const fitAddon = new FitAddon();
-terminal.loadAddon(fitAddon);
-terminal.open(terminalEl);
-
-fitAddon.fit();
-
-/** @type {import('@webcontainer/api').WebContainer}  */
+let terminal;
 let webcontainerInstance;
 
-window.addEventListener('load', async () => {
+startReplButton.addEventListener('click', async () => {
+    if (!terminal) {
+        terminal = new Terminal({
+            cursorBlink: true,
+        });
+        const fitAddon = new FitAddon();
+        terminal.loadAddon(fitAddon);
+        terminal.open(terminalContainer);
+        fitAddon.fit();
+    }
+
     terminal.write('Starting WebContainer...\n');
     try {
         webcontainerInstance = await WebContainer.boot();
