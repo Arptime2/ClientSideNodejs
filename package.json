@@ -1,0 +1,21 @@
+{
+  "name": "client-side-nodejs-repl",
+  "version": "1.0.0",
+  "description": "A Node.js REPL running entirely in the browser using WebContainers.",
+  "main": "main.js",
+  "scripts": {
+    "start": "vite",
+    "build": "vite build",
+    "serve": "vite preview",
+    "deploy": "vite build && gh-pages -d dist"
+  },
+  "devDependencies": {
+    "gh-pages": "^6.3.0",
+    "vite": "^5.0.0"
+  },
+  "dependencies": {
+    "@webcontainer/api": "^1.0.0",
+    "xterm": "^5.0.0",
+    "xterm-addon-fit": "^0.8.0"
+  }
+}

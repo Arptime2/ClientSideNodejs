@@ -1,108 +1,14 @@
-<!DOCTYPE html><html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WebContainer Node.js REPL</title>
-  <!-- XTerm.js CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/xterm/css/xterm.css" />
-  <!-- COOP/COEP shim -->
-  <script src="coi-serviceworker.js"></script>
-  <style>
-    body {
-      margin: 0;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      font-family: sans-serif;
-    }
-    #controls {
-      padding: 0.5rem;
-      background: #eee;
-      border-bottom: 1px solid #ccc;
-    }
-    #terminal {
-      flex: 1;
-    }
-    button {
-      padding: 0.5rem 1rem;
-      font-size: 1rem;
-    }
-    #error-output {
-      color: red;
-      padding: 0.5rem 1rem;
-      background: #ffecec;
-      font-family: monospace;
-      display: none;
-    }
-  </style>
-</head>
-<body>
-  <div id="controls">
-    <button id="run">Start/Restart REPL ▶️</button>
-  </div>
-  <div id="error-output"></div>
-  <div id="terminal"></div>  <script type="module">
-    import { WebContainer } from 'https://cdn.jsdelivr.net/npm/@webcontainer/api/dist/index.js';
-    import { Terminal } from 'https://unpkg.com/xterm/lib/xterm.js';
-    import { FitAddon } from 'https://unpkg.com/xterm-addon-fit/lib/xterm-addon-fit.js';
-
-    let container;
-    let replProcess;
-    const term = new Terminal({ cursorBlink: true });
-    const fitAddon = new FitAddon();
-    const errorDisplay = document.getElementById('error-output');
-
-    async function bootContainer() {
-      try {
-        container = await WebContainer.boot();
-      } catch (err) {
-        errorDisplay.textContent = '❌ Failed to boot WebContainer: ' + err.message;
-        errorDisplay.style.display = 'block';
-      }
-    }
-
-    async function startRepl() {
-      try {
-        errorDisplay.style.display = 'none';
-        term.reset();
-        if (replProcess) {
-          try { replProcess.kill(); } catch {}
-        }
-
-        replProcess = await container.spawn('node', {
-          stdout: true,
-          stderr: true,
-          stdin: true,
-        });
-
-        replProcess.output.pipeTo(new WritableStream({
-          write(data) { term.write(data); }
-        }));
-
-        term.onData(data => replProcess.input.write(data));
-      } catch (err) {
-        errorDisplay.textContent = '❌ Failed to start REPL: ' + err.message;
-        errorDisplay.style.display = 'block';
-      }
-    }
-
-    (async () => {
-      try {
-        term.loadAddon(fitAddon);
-        term.open(document.getElementById('terminal'));
-        fitAddon.fit();
-        window.addEventListener('resize', () => fitAddon.fit());
-
-        await bootContainer();
-
-        document.getElementById('run').addEventListener('click', startRepl);
-
-        // Auto-start REPL
-        startRepl();
-      } catch (err) {
-        errorDisplay.textContent = '❌ Initialization error: ' + err.message;
-        errorDisplay.style.display = 'block';
-      }
-    })();
-  </script></body>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Client-Side Node.js REPL</title>
+  </head>
+  <body>
+    <h1>Client-Side Node.js REPL</h1>
+    <p>This is a Node.js REPL running entirely in your browser, powered by WebContainers.</p>
+    <div class="terminal"></div>
+    <script type="module" src="/main.js"></script>
+    </body>
 </html>
