@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Client-Side Node.js REPL</title>
+    <link rel="icon" href="data:,">
     <link rel="stylesheet" href="./style.css">
   </head>
   <body>
@@ -13,7 +14,7 @@
     <div class="terminal-container"></div>
     <script>
       if (typeof SharedArrayBuffer === 'undefined') {
-        const swUrl = `/coi-sw.js`;
+        const swUrl = `./coi-sw.js`;
         navigator.serviceWorker.register(swUrl).then(() => {
           console.log('Service worker registered, reloading the page.');
           window.location.reload();
