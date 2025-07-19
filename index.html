@@ -3,42 +3,97 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>WebContainer Node.js REPL</title>
-  <!-- XTerm CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/xterm/css/xterm.css">
-  <!-- Register the shim -->
+  <title>WebContainer Node.js Playground</title>
+  <!-- COOP/COEP shim -->
   <script src="coi-serviceworker.js"></script>
   <style>
-    body { margin: 0; height: 100vh; display: flex; }
-    #terminal { flex: 1; }
+    body { margin: 0; display: flex; height: 100vh; font-family: sans-serif; }
+    #sidebar {
+      width: 40%;
+      padding: 1rem;
+      box-sizing: border-box;
+      border-right: 1px solid #ccc;
+      display: flex;
+      flex-direction: column;
+    }
+    #editor {
+      flex: 1;
+      width: 100%;
+      resize: none;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    #run {
+      margin-top: 0.5rem;
+      padding: 0.5rem 1rem;
+    }
+    #output-container {
+      flex: 1;
+      width: 60%;
+      padding: 1rem;
+      box-sizing: border-box;
+      overflow: auto;
+      background: #f9f9f9;
+    }
+    #output {
+      white-space: pre-wrap;
+      font-family: monospace;
+    }
+    .error { color: red; }
+    .stdout { color: black; }
   </style>
 </head>
 <body>
-  <div id="terminal"></div>
+  <div id="sidebar">
+    <h2>Code Editor</h2>
+    <textarea id="editor" placeholder="Write your Node.js code here...">console.log('Hello, WebContainer!');</textarea>
+    <button id="run">Run ▶️</button>
+  </div>
+  <div id="output-container">
+    <h2>Output</h2>
+    <div id="output"></div>
+  </div>
+
   <script type="module">
     import { WebContainer } from 'https://cdn.jsdelivr.net/npm/@webcontainer/api/dist/index.js';
-    import { Terminal } from 'https://unpkg.com/xterm/lib/xterm.js';
-    import { FitAddon } from 'https://unpkg.com/xterm-addon-fit/lib/xterm-addon-fit.js';
 
+    let container;
     (async () => {
-      const container = await WebContainer.boot();
-      const term = new Terminal({ cursorBlink: true });
-      const fitAddon = new FitAddon();
-      term.loadAddon(fitAddon);
-      term.open(document.getElementById('terminal'));
-      fitAddon.fit();
-
-      const repl = await container.spawn('node', {
-        stdout: true,
-        stderr: true,
-        stdin: true,
-      });
-      repl.output.pipeTo(new WritableStream({
-        write(data) { term.write(data); }
-      }));
-      term.onData(data => repl.input.write(data));
-      window.addEventListener('resize', () => fitAddon.fit());
+      container = await WebContainer.boot();
     })();
+
+    document.getElementById('run').addEventListener('click', async () => {
+      const outputEl = document.getElementById('output');
+      outputEl.textContent = '';
+
+      const code = document.getElementById('editor').value;
+      // Write the user code to index.js in the virtual FS
+      await container.fs.writeFile('/index.js', code);
+
+      // Run the code with node
+      const process = await container.spawn('node', {
+        args: ['index.js'],
+        stdout: true,
+        stderr: true
+      });
+
+      const reader = process.output.getReader();
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        const text = value;
+        const span = document.createElement('span');
+        span.textContent = text;
+
+        // Very basic error detection
+        if (/\\b(Error|Exception|UnhandledPromiseRejection)\\b/.test(text)) {
+          span.className = 'error';
+        } else {
+          span.className = 'stdout';
+        }
+        outputEl.appendChild(span);
+      }
+    });
   </script>
 </body>
 </html>
