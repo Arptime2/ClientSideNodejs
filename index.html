@@ -55,45 +55,51 @@
   </div>
 
   <script type="module">
-    import { WebContainer } from 'https://cdn.jsdelivr.net/npm/@webcontainer/api/dist/index.js';
+  import { WebContainer } from 'https://cdn.jsdelivr.net/npm/@webcontainer/api/dist/index.js';
 
-    let container;
-    (async () => {
-      container = await WebContainer.boot();
-    })();
+  let container;
 
-    document.getElementById('run').addEventListener('click', async () => {
-      const outputEl = document.getElementById('output');
-      outputEl.textContent = '';
+  const boot = async () => {
+    container = await WebContainer.boot();
+  };
 
-      const code = document.getElementById('editor').value;
-      // Write the user code to index.js in the virtual FS
-      await container.fs.writeFile('/index.js', code);
+  await boot();
 
-      // Run the code with node
-      const process = await container.spawn('node', {
-        args: ['index.js'],
-        stdout: true,
-        stderr: true
-      });
+  document.getElementById('run').addEventListener('click', async () => {
+    const outputEl = document.getElementById('output');
+    outputEl.textContent = '';
 
-      const reader = process.output.getReader();
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        const text = value;
-        const span = document.createElement('span');
-        span.textContent = text;
+    const code = document.getElementById('editor').value;
+    if (code.includes('.help')) {
+      const err = document.createElement('div');
+      err.className = 'error';
+      err.textContent = '❌ Error: .help is a REPL command. Please remove it and use plain JavaScript.';
+      outputEl.appendChild(err);
+      return;
+    }
 
-        // Very basic error detection
-        if (/\\b(Error|Exception|UnhandledPromiseRejection)\\b/.test(text)) {
-          span.className = 'error';
-        } else {
-          span.className = 'stdout';
-        }
-        outputEl.appendChild(span);
-      }
+    // Write the JS code to a file
+    await container.fs.writeFile('/index.js', code);
+
+    // Spawn node process to run the file
+    const process = await container.spawn('node', {
+      args: ['index.js'],
+      stdout: true,
+      stderr: true
     });
+
+    // Output the result
+    const reader = process.output.getReader();
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      const text = value;
+      const line = document.createElement('div');
+      line.textContent = text;
+      line.className = /Error|Exception/.test(text) ? 'error' : 'stdout';
+      outputEl.appendChild(line);
+    }
+  });
   </script>
 </body>
 </html>
