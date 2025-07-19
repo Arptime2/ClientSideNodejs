@@ -1,5 +1,3 @@
-
-
 // Imports MUST be at the top level of the module.
 import { WebContainer } from '@webcontainer/api';
 
@@ -9,15 +7,12 @@ async function main() {
     // --- COI Service Worker ---
     if (typeof SharedArrayBuffer === 'undefined') {
         console.log("SharedArrayBuffer is not available. Registering COI service worker.");
-        // Construct the correct path to the service worker file.
-        // It should be relative to the root of the deployed site.
         const swPath = new URL('coi-serviceworker.js', window.location.href).pathname;
         
         navigator.serviceWorker.register(swPath).then(() => {
             console.log("Service worker registered. Reloading page to apply headers.");
             window.location.reload();
         });
-        // Stop further execution until the page reloads with the new headers
         return;
     }
 
@@ -46,7 +41,14 @@ async function main() {
             // --- Handle Server Ready Event ---
             webcontainerInstance.on('server-ready', (port, url) => {
                 console.log(`Server is ready at ${url}`);
-                writeToTerminal(`\nServer is ready! Click to open: ${url}\n`);
+                const link = document.createElement('a');
+                link.href = url;
+                link.target = '_blank';
+                link.textContent = `Server is ready! Click to open: ${url}`;
+                terminalOutput.appendChild(document.createElement('br'));
+                terminalOutput.appendChild(link);
+                terminalOutput.appendChild(document.createElement('br'));
+                terminalOutput.scrollTop = terminalOutput.scrollHeight;
             });
 
         } catch (error) {
@@ -65,10 +67,12 @@ async function main() {
         }
 
         const code = codeInput.value;
-        writeToTerminal(`> node -e "..."\n`);
+        writeToTerminal(`> node script.js\n`);
 
         try {
-            const process = await webcontainerInstance.spawn('node', ['-e', code]);
+            // We write the code to a file to handle more complex scripts
+            await webcontainerInstance.fs.writeFile('script.js', code);
+            const process = await webcontainerInstance.spawn('node', ['script.js']);
             process.output.pipeTo(new WritableStream({
                 write(data) {
                     writeToTerminal(data);
@@ -93,4 +97,3 @@ try {
     console.error("A fatal error occurred in the main script:", error);
     document.body.innerHTML = `<pre style="color: red; padding: 20px;">A fatal error occurred: ${error.message}.\n\nCheck the developer console for details.</pre>`;
 }
-
